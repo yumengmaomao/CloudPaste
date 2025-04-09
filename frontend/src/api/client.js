@@ -115,8 +115,8 @@ export async function fetchApi(endpoint, options = {}) {
         console.error(`🚫 授权失败(${url}):`, responseData);
 
         // 判断是否是密码验证请求（文本或文件分享的密码验证）
-        const isTextPasswordVerify = endpoint.match(/^(\/)?paste\/[a-zA-Z0-9]+$/i) && options.method === "POST";
-        const isFilePasswordVerify = endpoint.match(/^(\/)?public\/files\/[a-zA-Z0-9]+\/verify$/i) && options.method === "POST";
+        const isTextPasswordVerify = endpoint.match(/^(\/)?paste\/[a-zA-Z0-9_-]+$/i) && options.method === "POST";
+        const isFilePasswordVerify = endpoint.match(/^(\/)?public\/files\/[a-zA-Z0-9_-]+\/verify$/i) && options.method === "POST";
         const hasPasswordInBody = options.body && (typeof options.body === "string" ? options.body.includes("password") : options.body.password);
 
         // 检查是否是修改密码请求

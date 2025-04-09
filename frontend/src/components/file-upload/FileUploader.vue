@@ -38,41 +38,138 @@
         >
           {{ t("file.maxSizeExceeded", { size: formatMaxFileSize() }) }}
         </p>
+        <p
+            class="text-sm mt-1 transition-colors duration-300"
+            :class="[darkMode ? 'text-gray-400' : 'text-gray-500', isDragging ? (darkMode ? 'text-blue-300/80' : 'text-blue-600/80') : '']"
+        >
+          <span class="px-1.5 py-0.5 rounded text-xs" :class="darkMode ? 'bg-gray-700 text-blue-300' : 'bg-gray-200 text-blue-600'">
+            {{ t("file.multipleFilesSupported") }}
+          </span>
+        </p>
       </div>
-      <input ref="fileInput" type="file" class="hidden" @change="onFileSelected" />
+      <input ref="fileInput" type="file" class="hidden" multiple @change="onFileSelected" />
     </div>
 
     <!-- 已选文件预览 -->
-    <div v-if="selectedFile" class="selected-file mb-6 flex items-center p-3 rounded-md" :class="darkMode ? 'bg-gray-700/50' : 'bg-gray-100'">
-      <div class="file-icon mr-3">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" :class="darkMode ? 'text-gray-300' : 'text-gray-600'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
+    <div v-if="selectedFiles.length > 0" class="selected-files mb-6">
+      <div class="files-header flex justify-between items-center mb-3">
+        <h3 class="text-base font-medium" :class="darkMode ? 'text-gray-200' : 'text-gray-700'">
+          {{ t("file.selectedFiles", { count: selectedFiles.length }) }}
+        </h3>
+        <button
+            type="button"
+            @click="clearAllFiles"
+            class="text-sm px-2 py-1 rounded transition-colors flex items-center"
+            :class="darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          {{ t("file.clearAll") }}
+        </button>
       </div>
-      <div class="file-info flex-grow mr-3">
-        <div class="font-medium truncate" :class="darkMode ? 'text-white' : 'text-gray-900'">
-          {{ selectedFile.name }}
-        </div>
-        <div class="text-sm" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
-          {{ formatFileSize(selectedFile.size) }}
+      <div class="files-list max-h-60 overflow-y-auto">
+        <div
+            v-for="(file, index) in selectedFiles"
+            :key="index"
+            class="selected-file mb-3 flex items-center p-3 rounded-md"
+            :class="[
+            darkMode ? 'bg-gray-700/50' : 'bg-gray-100',
+            fileItems[index]?.status === 'error' ? (darkMode ? 'border-l-4 border-red-500' : 'border-l-4 border-red-500') : '',
+            fileItems[index]?.status === 'success' ? (darkMode ? 'border-l-4 border-green-500' : 'border-l-4 border-green-500') : '',
+            fileItems[index]?.status === 'uploading' ? (darkMode ? 'border-l-4 border-blue-500' : 'border-l-4 border-blue-500') : '',
+          ]"
+        >
+          <div class="file-icon mr-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" :class="darkMode ? 'text-gray-300' : 'text-gray-600'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <div class="file-info flex-grow mr-3">
+            <div class="font-medium truncate" :class="darkMode ? 'text-white' : 'text-gray-900'">
+              {{ file.name }}
+            </div>
+            <div class="flex justify-between">
+              <span class="text-sm" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
+                {{ formatFileSize(file.size) }}
+              </span>
+
+              <!-- 文件状态显示 -->
+              <span
+                  v-if="fileItems[index]"
+                  class="text-xs ml-2 px-2 py-0.5 rounded-full"
+                  :class="{
+                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300': fileItems[index].status === 'pending',
+                  'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300': fileItems[index].status === 'uploading',
+                  'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300': fileItems[index].status === 'success',
+                  'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300': fileItems[index].status === 'error',
+                }"
+              >
+                {{
+                  fileItems[index].status === "pending"
+                      ? t("file.pending")
+                      : fileItems[index].status === "uploading"
+                          ? `${fileItems[index].progress}%`
+                          : fileItems[index].status === "success"
+                              ? t("file.success")
+                              : fileItems[index].status === "error"
+                                  ? t("file.error")
+                                  : ""
+                }}
+              </span>
+            </div>
+
+            <!-- 单个文件进度条 -->
+            <div v-if="fileItems[index]?.status === 'uploading'" class="w-full bg-gray-200 rounded-full h-1.5 mt-1 dark:bg-gray-700">
+              <div
+                  class="h-1.5 rounded-full transition-all duration-200"
+                  :class="fileItems[index].progress >= 95 ? 'bg-green-500' : 'bg-blue-500'"
+                  :style="{ width: `${fileItems[index].progress}%` }"
+              ></div>
+            </div>
+          </div>
+          <!-- 重试按钮，仅在错误状态显示 -->
+          <button
+              v-if="fileItems[index]?.status === 'error'"
+              type="button"
+              @click="retryUpload(index)"
+              class="p-1 rounded-full hover:bg-opacity-20 transition-colors mr-1"
+              :class="darkMode ? 'hover:bg-gray-600 text-gray-400' : 'hover:bg-gray-200 text-gray-500'"
+              :title="t('file.retry')"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
+          <button
+              type="button"
+              @click="clearSelectedFile(index)"
+              class="p-1 rounded-full hover:bg-opacity-20 transition-colors"
+              :class="darkMode ? 'hover:bg-gray-600 text-gray-400' : 'hover:bg-gray-200 text-gray-500'"
+              :title="t('file.clearSelected')"
+              :disabled="fileItems[index]?.status === 'uploading'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
-      <button
-          type="button"
-          @click="clearSelectedFile"
-          class="p-1 rounded-full hover:bg-opacity-20 transition-colors"
-          :class="darkMode ? 'hover:bg-gray-600 text-gray-400' : 'hover:bg-gray-200 text-gray-500'"
-          :title="t('file.clearSelected')"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
     </div>
 
     <!-- 上传选项表单 -->
@@ -240,7 +337,7 @@
           </div>
 
           <!-- 上传进度 -->
-          <div v-if="uploadProgress > 0 && isUploading" class="mt-4">
+          <div v-if="totalProgress > 0 && isUploading" class="mt-4">
             <div class="flex justify-between items-center mb-1">
               <div class="flex items-center">
                 <span class="text-sm mr-2" :class="darkMode ? 'text-gray-300' : 'text-gray-700'">{{ t("file.uploadProgress") }}</span>
@@ -248,15 +345,15 @@
                   {{ uploadSpeed }}
                 </span>
               </div>
-              <span class="text-sm font-medium" :class="darkMode ? 'text-gray-300' : 'text-gray-700'">{{ uploadProgress }}%</span>
+              <span class="text-sm font-medium" :class="darkMode ? 'text-gray-300' : 'text-gray-700'">{{ totalProgress }}%</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
               <div
                   class="h-2.5 rounded-full transition-all duration-200 ease-out relative overflow-hidden"
-                  :class="uploadProgress >= 95 ? 'bg-green-600' : 'bg-blue-600'"
-                  :style="{ width: `${uploadProgress}%` }"
+                  :class="totalProgress >= 95 ? 'bg-green-600' : 'bg-blue-600'"
+                  :style="{ width: `${totalProgress}%` }"
               >
-                <div class="progress-stripes absolute inset-0 w-full h-full" :class="uploadProgress < 100 ? 'animate-progress-stripes' : ''"></div>
+                <div class="progress-stripes absolute inset-0 w-full h-full" :class="totalProgress < 100 ? 'animate-progress-stripes' : ''"></div>
               </div>
             </div>
           </div>
@@ -265,10 +362,10 @@
           <div class="submit-section mt-6 flex flex-row items-center gap-3">
             <button
                 type="submit"
-                :disabled="!selectedFile || !formData.s3_config_id || isUploading || loading"
+                :disabled="selectedFiles.length === 0 || !formData.s3_config_id || isUploading || loading"
                 class="btn-primary px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors flex items-center justify-center min-w-[120px]"
                 :class="[
-                !selectedFile || !formData.s3_config_id || isUploading || loading
+                selectedFiles.length === 0 || !formData.s3_config_id || isUploading || loading
                   ? darkMode
                     ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
@@ -349,7 +446,8 @@ const maxFileSizeMB = ref(100); // 默认值
 // 拖拽状态
 const isDragging = ref(false);
 const fileInput = ref(null);
-const selectedFile = ref(null);
+const selectedFiles = ref([]);
+const fileItems = ref([]);
 
 // 上传状态
 const isUploading = ref(false);
@@ -360,6 +458,8 @@ const activeXhr = ref(null);
 const lastLoaded = ref(0);
 const lastTime = ref(0);
 const slugError = ref(""); // 添加slug错误状态
+const currentUploadIndex = ref(-1);
+const totalProgress = ref(0);
 
 // 表单数据
 const formData = reactive({
@@ -454,18 +554,36 @@ const onDragLeave = (event) => {
 const onDrop = (event) => {
   isDragging.value = false;
   if (event.dataTransfer.files.length > 0) {
-    const file = event.dataTransfer.files[0];
-    // 验证文件大小是否超过限制
-    if (file.size > maxFileSizeMB.value * 1024 * 1024) {
-      message.value = {
-        type: "error",
-        content: t("file.maxSizeExceeded", { size: maxFileSizeMB.value }),
-      };
-      // 触发错误事件，让父组件处理消息显示
-      emit("upload-error", new Error(t("file.maxSizeExceeded", { size: maxFileSizeMB.value })));
-      return;
-    }
-    selectedFile.value = file;
+    // 处理所有拖放的文件
+    Array.from(event.dataTransfer.files).forEach((file) => {
+      // 验证文件大小是否超过限制
+      if (file.size > maxFileSizeMB.value * 1024 * 1024) {
+        message.value = {
+          type: "error",
+          content: t("file.maxSizeExceeded", { size: maxFileSizeMB.value }),
+        };
+        // 触发错误事件，让父组件处理消息显示
+        emit("upload-error", new Error(t("file.maxSizeExceeded", { size: formatMaxFileSize() })));
+        return;
+      }
+
+      // 检查文件是否已经在列表中（基于名称和大小）
+      const isFileAlreadyAdded = selectedFiles.value.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size);
+
+      if (!isFileAlreadyAdded) {
+        selectedFiles.value.push(file);
+
+        // 初始化文件项状态
+        fileItems.value.push({
+          file,
+          progress: 0,
+          status: "pending", // pending, uploading, success, error
+          message: "",
+          fileId: null,
+          xhr: null,
+        });
+      }
+    });
   }
 };
 
@@ -476,26 +594,72 @@ const triggerFileInput = () => {
 
 const onFileSelected = (event) => {
   if (event.target.files.length > 0) {
-    const file = event.target.files[0];
-    // 验证文件大小是否超过限制
-    if (file.size > maxFileSizeMB.value * 1024 * 1024) {
-      message.value = {
-        type: "error",
-        content: t("file.maxSizeExceeded", { size: maxFileSizeMB.value }),
-      };
-      // 触发错误事件，让父组件处理消息显示
-      emit("upload-error", new Error(t("file.maxSizeExceeded", { size: maxFileSizeMB.value })));
-      return;
-    }
-    selectedFile.value = file;
+    // 处理所有选择的文件
+    Array.from(event.target.files).forEach((file) => {
+      // 验证文件大小是否超过限制
+      if (file.size > maxFileSizeMB.value * 1024 * 1024) {
+        message.value = {
+          type: "error",
+          content: t("file.maxSizeExceeded", { size: maxFileSizeMB.value }),
+        };
+        // 触发错误事件，让父组件处理消息显示
+        emit("upload-error", new Error(t("file.maxSizeExceeded", { size: formatMaxFileSize() })));
+        return;
+      }
+
+      // 检查文件是否已经在列表中（基于名称和大小）
+      const isFileAlreadyAdded = selectedFiles.value.some((existingFile) => existingFile.name === file.name && existingFile.size === file.size);
+
+      if (!isFileAlreadyAdded) {
+        selectedFiles.value.push(file);
+
+        // 初始化文件项状态
+        fileItems.value.push({
+          file,
+          progress: 0,
+          status: "pending", // pending, uploading, success, error
+          message: "",
+          fileId: null,
+          xhr: null,
+        });
+      }
+    });
   }
 };
 
 // 清除已选文件
-const clearSelectedFile = () => {
-  selectedFile.value = null;
+const clearSelectedFile = (index) => {
+  // 检查文件是否正在上传
+  if (fileItems.value[index]?.status === "uploading") {
+    return; // 不允许删除正在上传的文件
+  }
+
+  // 从数组中移除文件
+  selectedFiles.value.splice(index, 1);
+  fileItems.value.splice(index, 1);
+
   // 重置文件输入框，以便重新选择同一文件
-  if (fileInput.value) {
+  if (fileInput.value && selectedFiles.value.length === 0) {
+    fileInput.value.value = "";
+  }
+};
+
+// 清除所有文件
+const clearAllFiles = () => {
+  // 过滤出非上传中的文件索引
+  const indicesToRemove = fileItems.value
+      .map((item, index) => (item.status !== "uploading" ? index : -1))
+      .filter((index) => index !== -1)
+      .sort((a, b) => b - a); // 倒序排列以便从后向前删除
+
+  // 从后向前删除文件
+  for (const index of indicesToRemove) {
+    selectedFiles.value.splice(index, 1);
+    fileItems.value.splice(index, 1);
+  }
+
+  // 重置文件输入框，以便重新选择同一文件
+  if (fileInput.value && selectedFiles.value.length === 0) {
     fileInput.value.value = "";
   }
 };
@@ -519,48 +683,48 @@ const formatFileSize = (bytes) => {
 
 // 取消上传
 const cancelUpload = () => {
-  if (activeXhr.value && isUploading.value) {
-    activeXhr.value.abort();
+  if (isUploading.value) {
+    // 如果有正在上传的文件
+    if (currentUploadIndex.value >= 0 && currentUploadIndex.value < fileItems.value.length) {
+      const fileItem = fileItems.value[currentUploadIndex.value];
+
+      // 如果有活动的XHR请求，取消它
+      if (fileItem.xhr) {
+        fileItem.xhr.abort();
+        fileItem.status = "error";
+        fileItem.message = t("file.cancelMessage");
+      }
+
+      // 如果已获取了文件ID，则删除相应的文件记录
+      if (fileItem.fileId) {
+        // 根据用户身份选择合适的删除API
+        const deleteApi = props.isAdmin ? deleteFile : deleteUserFile;
+
+        // 删除文件记录
+        deleteApi(fileItem.fileId)
+            .then(() => {
+              console.log("已成功删除被取消的文件记录");
+            })
+            .catch((error) => {
+              console.error("删除被取消的文件记录失败:", error);
+            });
+      }
+    }
+
+    // 重置上传状态
     isUploading.value = false;
     uploadProgress.value = 0;
+    totalProgress.value = 0;
     uploadSpeed.value = "";
+    currentUploadIndex.value = -1;
 
-    // 如果已获取了文件ID，则删除相应的文件记录
-    if (currentFileId.value) {
-      // 根据用户身份选择合适的删除API
-      const deleteApi = props.isAdmin ? deleteFile : deleteUserFile;
+    message.value = {
+      type: "error",
+      content: t("file.cancelMessage"),
+    };
 
-      // 删除文件记录
-      deleteApi(currentFileId.value)
-          .then(() => {
-            console.log("已成功删除被取消的文件记录");
-          })
-          .catch((error) => {
-            console.error("删除被取消的文件记录失败:", error);
-          })
-          .finally(() => {
-            // 重置文件ID
-            currentFileId.value = null;
-
-            // 设置message但不显示，由父组件处理
-            message.value = {
-              type: "error",
-              content: t("file.cancelMessage"),
-            };
-
-            // 触发错误事件，让父组件处理消息显示
-            emit("upload-error", new Error(t("file.cancelMessage")));
-          });
-    } else {
-      // 如果没有文件ID，直接显示取消消息
-      message.value = {
-        type: "error",
-        content: t("file.cancelMessage"),
-      };
-
-      // 触发错误事件，让父组件处理消息显示
-      emit("upload-error", new Error(t("file.cancelMessage")));
-    }
+    // 触发错误事件，让父组件处理消息显示
+    emit("upload-error", new Error(t("file.cancelMessage")));
   }
 };
 
@@ -586,17 +750,39 @@ const validateCustomLink = () => {
 
 // 上传文件
 const submitUpload = async () => {
-  if (!selectedFile.value || !formData.s3_config_id || isUploading.value) return;
+  if (selectedFiles.value.length === 0 || !formData.s3_config_id || isUploading.value) return;
 
-  // 再次验证文件大小是否超过限制
-  if (selectedFile.value.size > maxFileSizeMB.value * 1024 * 1024) {
+  // 检查是否有文件可以上传（排除已上传成功或正在上传的文件）
+  const filesToUpload = fileItems.value.filter((item) => item.status !== "success" && item.status !== "uploading");
+
+  if (filesToUpload.length === 0) {
     message.value = {
-      type: "error",
-      content: t("file.maxSizeExceeded", { size: maxFileSizeMB.value }),
+      type: "warning",
+      content: t("file.noFilesToUpload"),
     };
-    // 触发错误事件，让父组件处理消息显示
-    emit("upload-error", new Error(t("file.maxSizeExceeded", { size: maxFileSizeMB.value })));
+    emit("upload-error", new Error(t("file.noFilesToUpload")));
     return;
+  }
+
+  // 验证文件大小是否超过限制
+  for (let i = 0; i < selectedFiles.value.length; i++) {
+    const file = selectedFiles.value[i];
+    // 跳过已上传的文件
+    if (fileItems.value[i].status === "success") continue;
+
+    if (file.size > maxFileSizeMB.value * 1024 * 1024) {
+      message.value = {
+        type: "error",
+        content: t("file.maxSizeExceeded", { size: maxFileSizeMB.value }),
+      };
+      // 更新文件状态
+      fileItems.value[i].status = "error";
+      fileItems.value[i].message = t("file.maxSizeExceeded", { size: maxFileSizeMB.value });
+
+      // 触发错误事件，让父组件处理消息显示
+      emit("upload-error", new Error(t("file.maxSizeExceeded", { size: maxFileSizeMB.value })));
+      return;
+    }
   }
 
   // 验证可打开次数，确保是非负整数
@@ -609,32 +795,258 @@ const submitUpload = async () => {
 
     // 触发错误事件，让父组件处理消息显示
     emit("upload-error", new Error(t("file.negativeMaxViews")));
-
     return;
   }
 
   // 验证自定义链接格式
-  if (!validateCustomLink()) {
+  if (formData.slug && !validateCustomLink()) {
     message.value = { type: "error", text: slugError.value };
     return;
   }
 
   isUploading.value = true;
   uploadProgress.value = 0;
+  totalProgress.value = 0;
   uploadSpeed.value = "";
   message.value = null;
+  currentUploadIndex.value = -1;
+
+  // 重置上传速度计算相关变量
+  lastLoaded.value = 0;
+  lastTime.value = Date.now();
+
+  const uploadResults = [];
+  const errors = [];
+
+  // 顺序上传每个文件
+  for (let i = 0; i < selectedFiles.value.length; i++) {
+    // 跳过已上传成功的文件
+    if (fileItems.value[i].status === "success") {
+      continue;
+    }
+
+    currentUploadIndex.value = i;
+    const file = selectedFiles.value[i];
+    const fileItem = fileItems.value[i];
+
+    // 更新文件状态为上传中
+    fileItem.status = "uploading";
+    fileItem.progress = 0;
+
+    try {
+      // 如果有自定义slug，则根据文件索引添加后缀，避免冲突
+      const fileSlug = formData.slug ? (selectedFiles.value.length > 1 ? `${formData.slug}-${i + 1}` : formData.slug) : "";
+
+      // 使用直接上传到S3的方法
+      const response = await directUploadFile(
+          file,
+          {
+            s3_config_id: formData.s3_config_id,
+            slug: fileSlug,
+            path: formData.path || "",
+            remark: formData.remark || "",
+            password: formData.password || "",
+            expires_in: formData.expires_in || "0",
+            max_views: formData.max_views !== undefined ? Number(formData.max_views) : 0,
+          },
+          // 进度回调函数
+          (progress, loaded, total) => {
+            // 更新当前文件进度
+            fileItem.progress = progress;
+
+            // 更新整体进度
+            const totalSize = selectedFiles.value.reduce((sum, f) => sum + f.size, 0);
+            const completedSize = selectedFiles.value.filter((_, idx) => idx < i || fileItems.value[idx].status === "success").reduce((sum, f) => sum + f.size, 0);
+
+            const currentProgress = (loaded / total) * file.size;
+            totalProgress.value = Math.round(((completedSize + currentProgress) / totalSize) * 100);
+
+            // 计算上传速度
+            const now = Date.now();
+            const timeElapsed = (now - lastTime.value) / 1000; // 转换为秒
+
+            if (timeElapsed > 0.5) {
+              // 每0.5秒更新一次速度
+              const loadedChange = loaded - lastLoaded.value; // 这段时间内上传的字节数
+              const speed = loadedChange / timeElapsed; // 字节/秒
+
+              uploadSpeed.value = formatSpeed(speed);
+
+              // 更新上次加载值和时间
+              lastLoaded.value = loaded;
+              lastTime.value = now;
+            }
+          },
+          // 获取XHR实例的回调
+          (xhr) => {
+            activeXhr.value = xhr;
+            fileItem.xhr = xhr;
+          },
+          // 获取文件ID的回调
+          (fileId) => {
+            currentFileId.value = fileId;
+            fileItem.fileId = fileId;
+          }
+      );
+
+      // 上传成功，更新文件状态
+      fileItem.status = "success";
+      fileItem.progress = 100;
+
+      uploadResults.push(response);
+    } catch (error) {
+      console.error(`上传文件 ${file.name} 失败:`, error);
+      // 检查是否是链接后缀冲突错误
+      const errorMessage = error.message || t("common.unknownError");
+      const isSlugConflict =
+          (errorMessage.includes("slug") &&
+              (errorMessage.includes("already exists") || errorMessage.includes("already taken") || errorMessage.includes("duplicate") || errorMessage.includes("conflict"))) ||
+          errorMessage.includes("链接后缀已被占用") ||
+          errorMessage.includes("已存在");
+
+      // 更新文件状态为错误
+      fileItem.status = "error";
+      // 如果是链接后缀冲突，提供更具体的错误消息
+      if (isSlugConflict) {
+        fileItem.message = t("file.slugConflict");
+      } else {
+        fileItem.message = errorMessage;
+      }
+
+      errors.push({
+        fileName: file.name,
+        error: error,
+        isSlugConflict: isSlugConflict,
+      });
+    }
+  }
+
+  // 处理整体上传结果
+  currentUploadIndex.value = -1;
+
+  if (errors.length > 0) {
+    // 检查是否所有错误都是链接后缀冲突
+    const allSlugConflicts = errors.every((err) => err.isSlugConflict);
+    // 检查是否有链接后缀冲突
+    const hasSlugConflicts = errors.some((err) => err.isSlugConflict);
+
+    // 有错误发生
+    if (errors.length === selectedFiles.value.length) {
+      // 所有文件都上传失败
+      if (allSlugConflicts) {
+        // 如果所有失败都是因为链接后缀冲突
+        message.value = {
+          type: "error",
+          content: t("file.allSlugConflicts"),
+        };
+        emit("upload-error", new Error(t("file.allSlugConflicts")));
+      } else {
+        message.value = {
+          type: "error",
+          content: t("file.allUploadsFailed"),
+        };
+        emit("upload-error", new Error(t("file.allUploadsFailed")));
+      }
+    } else {
+      // 部分文件上传失败
+      if (hasSlugConflicts) {
+        // 如果有链接后缀冲突错误
+        const slugConflictCount = errors.filter((err) => err.isSlugConflict).length;
+        message.value = {
+          type: "warning",
+          content: slugConflictCount === errors.length ? t("file.someSlugConflicts", { count: slugConflictCount }) : t("file.someUploadsFailed", { count: errors.length }),
+        };
+        emit("upload-error", new Error(message.value.content));
+      } else {
+        message.value = {
+          type: "warning",
+          content: t("file.someUploadsFailed", { count: errors.length }),
+        };
+        emit("upload-error", new Error(t("file.someUploadsFailed", { count: errors.length })));
+      }
+    }
+  } else if (uploadResults.length > 0) {
+    // 至少有一个文件上传成功
+    message.value = {
+      type: "success",
+      content: uploadResults.length > 1 ? t("file.multipleUploadsSuccessful", { count: uploadResults.length }) : t("file.uploadSuccessful"),
+    };
+
+    // 成功事件
+    emit("upload-success", uploadResults);
+
+    // 重置表单数据
+    formData.slug = "";
+    formData.remark = "";
+    formData.password = "";
+  }
+
+  // 清除已上传成功的文件
+  const successfulIndices = fileItems.value
+      .map((item, index) => (item.status === "success" ? index : -1))
+      .filter((index) => index !== -1)
+      .sort((a, b) => b - a); // 倒序排列以便从后向前删除
+
+  // 是否全部文件都上传成功
+  const allSuccess = successfulIndices.length === selectedFiles.value.length;
+
+  // 从后向前删除已上传成功的文件
+  for (const index of successfulIndices) {
+    selectedFiles.value.splice(index, 1);
+    fileItems.value.splice(index, 1);
+  }
+
+  // 全部上传成功后，重置文件输入框
+  if (allSuccess && fileInput.value) {
+    fileInput.value.value = "";
+  }
+
+  isUploading.value = false;
+};
+
+// 格式化上传速度
+const formatSpeed = (bytesPerSecond) => {
+  if (bytesPerSecond < 1024) {
+    return `${bytesPerSecond.toFixed(0)} B/s`;
+  } else if (bytesPerSecond < 1024 * 1024) {
+    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+  } else {
+    return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+  }
+};
+
+// 重试上传单个文件
+const retryUpload = async (index) => {
+  if (!selectedFiles.value[index] || !formData.s3_config_id || isUploading.value) return;
+
+  const file = selectedFiles.value[index];
+  const fileItem = fileItems.value[index];
+
+  // 重置文件状态为待上传
+  fileItem.status = "pending";
+  fileItem.progress = 0;
+  fileItem.message = "";
+
+  isUploading.value = true;
+  currentUploadIndex.value = index;
 
   // 重置上传速度计算相关变量
   lastLoaded.value = 0;
   lastTime.value = Date.now();
 
   try {
-    // 使用新的直接上传到S3的方法
+    // 如果有自定义slug，则保持与之前相同的命名逻辑
+    const fileSlug = formData.slug ? (selectedFiles.value.length > 1 ? `${formData.slug}-${index + 1}` : formData.slug) : "";
+
+    // 更新文件状态为上传中
+    fileItem.status = "uploading";
+
+    // 使用现有的上传函数进行上传
     const response = await directUploadFile(
-        selectedFile.value,
+        file,
         {
           s3_config_id: formData.s3_config_id,
-          slug: formData.slug || "",
+          slug: fileSlug,
           path: formData.path || "",
           remark: formData.remark || "",
           password: formData.password || "",
@@ -643,7 +1055,8 @@ const submitUpload = async () => {
         },
         // 进度回调函数
         (progress, loaded, total) => {
-          uploadProgress.value = progress;
+          // 更新当前文件进度
+          fileItem.progress = progress;
 
           // 计算上传速度
           const now = Date.now();
@@ -664,64 +1077,65 @@ const submitUpload = async () => {
         // 获取XHR实例的回调
         (xhr) => {
           activeXhr.value = xhr;
+          fileItem.xhr = xhr;
         },
         // 获取文件ID的回调
         (fileId) => {
           currentFileId.value = fileId;
+          fileItem.fileId = fileId;
         }
     );
 
-    // 处理成功响应
-    console.log("上传成功:", response);
-    // 设置message但不显示，由父组件处理
+    // 上传成功，更新文件状态
+    fileItem.status = "success";
+    fileItem.progress = 100;
+
+    // 显示成功消息
     message.value = {
       type: "success",
-      content: t("file.uploadSuccessful"),
+      content: t("file.retrySuccessful"),
     };
 
-    // 清空表单
-    selectedFile.value = null;
-    if (fileInput.value) {
-      fileInput.value.value = "";
+    // 延迟从列表中移除成功上传的文件
+    setTimeout(() => {
+      const index = selectedFiles.value.findIndex((f) => f === file);
+      if (index !== -1) {
+        selectedFiles.value.splice(index, 1);
+        fileItems.value.splice(index, 1);
+      }
+    }, 2000);
+  } catch (error) {
+    console.error(`重试上传文件 ${file.name} 失败:`, error);
+
+    // 检查是否是链接后缀冲突错误
+    const errorMessage = error.message || t("common.unknownError");
+    const isSlugConflict =
+        (errorMessage.includes("slug") &&
+            (errorMessage.includes("already exists") || errorMessage.includes("already taken") || errorMessage.includes("duplicate") || errorMessage.includes("conflict"))) ||
+        errorMessage.includes("链接后缀已被占用") ||
+        errorMessage.includes("已存在");
+
+    // 更新文件状态为错误
+    fileItem.status = "error";
+
+    // 设置具体的错误消息
+    if (isSlugConflict) {
+      fileItem.message = t("file.slugConflict");
+    } else {
+      fileItem.message = errorMessage;
     }
 
-    // 重置文件ID
-    currentFileId.value = null;
-
-    // 重置表单数据
-    formData.slug = "";
-    formData.path = "";
-    formData.remark = "";
-    formData.password = "";
-
-    // 发出成功事件
-    emit("upload-success", response.data);
-  } catch (error) {
-    console.error("上传失败:", error);
-    // 设置message但不显示，由父组件处理
+    // 显示错误消息
     message.value = {
       type: "error",
-      content: `${t("file.error")}: ${error.message || t("common.unknownError")}`,
+      content: fileItem.message,
     };
 
-    // 重置文件ID
-    currentFileId.value = null;
-
-    // 发出错误事件
+    // 触发错误事件
     emit("upload-error", error);
   } finally {
     isUploading.value = false;
-  }
-};
-
-// 格式化上传速度
-const formatSpeed = (bytesPerSecond) => {
-  if (bytesPerSecond < 1024) {
-    return `${bytesPerSecond.toFixed(0)} B/s`;
-  } else if (bytesPerSecond < 1024 * 1024) {
-    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
-  } else {
-    return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+    currentUploadIndex.value = -1;
   }
 };
 </script>
