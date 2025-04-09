@@ -1,13 +1,12 @@
 name = "cloudpaste-backend"
 main = "workers.js"
 compatibility_date = "2023-05-18"
-
+route = "cp.rkcat.top/*"
 # 环境变量
 [vars]
 # 用于加密敏感配置的密钥
 ENCRYPTION_SECRET = "lzl123456789987654321"
-route = "cp.rkcat.top/*"
-workers_dev = true
+
 
 # 绑定D1数据库
 # 需要替换为实际的数据库ID
